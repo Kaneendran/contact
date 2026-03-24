@@ -701,12 +701,12 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
   // For demonstration, we show structure; you'll need to integrate Google Identity Services.
   // Since OAuth requires redirects, we present a functional placeholder that guides the user.
   
-  const DRIVE_FOLDER_ID = 'YOUR_DRIVE_FOLDER_ID';   // <--- PASTE YOUR GOOGLE DRIVE FOLDER ID HERE
+  const DRIVE_FOLDER_ID = 'https://drive.google.com/drive/folders/1UqL1XLz4BAZ1VF34UEkF95JGBEXTsDQD';   // <--- PASTE YOUR GOOGLE DRIVE FOLDER ID HERE
   // Example: '1ABCDEFghijklmnopQRSTUVWXYZ'
   
   // This function uploads file using Google Drive API v3 (requires token)
   async function uploadToDrive(file, token) {
-    if (!DRIVE_FOLDER_ID || DRIVE_FOLDER_ID === 'YOUR_DRIVE_FOLDER_ID') {
+    if (!DRIVE_FOLDER_ID || DRIVE_FOLDER_ID === 'https://drive.google.com/drive/folders/1UqL1XLz4BAZ1VF34UEkF95JGBEXTsDQD') {
       console.warn('Please set your Google Drive Folder ID in the code.');
       alert('Upload configuration: Please set your Google Drive Folder ID. Contact support.');
       return false;
