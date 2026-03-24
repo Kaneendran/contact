@@ -1,10 +1,202 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NextStep.lk — Order Now</title>
-<link rel="icon" href="logo.jpg" type = image/jpg/>
+<script>
+  let currentSection = 1;
+  const totalSections = 6;
+
+  const sectionLabels = [
+    "Section 1 of 6 — Personal Details",
+    "Section 2 of 6 — Job Details",
+    "Section 3 of 6 — Education",
+    "Section 4 of 6 — Work Experience",
+    "Section 5 of 6 — Skills & Extras",
+    "Section 6 of 6 — Submit"
+  ];
+
+  function updateProgress() {
+    const pct = Math.round((currentSection / totalSections) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressLabel').textContent = sectionLabels[currentSection - 1];
+    document.getElementById('btnBack').style.visibility = currentSection === 1 ? 'hidden' : 'visible';
+    const btn = document.getElementById('btnNext');
+    if (currentSection === totalSections) {
+      btn.textContent = '';
+      btn.innerHTML = '✅ Submit Order';
+      btn.className = 'btn btn-submit';
+    } else {
+      btn.innerHTML = 'Next →';
+      btn.className = 'btn btn-next';
+    }
+  }
+
+  function validateSection(sectionNum) {
+    let ok = true;
+    const req = (id, errId, checkFn) => {
+      const el = document.getElementById(id);
+      const err = document.getElementById(errId);
+      if (!el || !err) return;
+      const val = el.value ? el.value.trim() : '';
+      const valid = checkFn ? checkFn(val) : val.length > 0;
+      el.classList.toggle('error', !valid);
+      err.classList.toggle('show', !valid);
+      if (!valid) ok = false;
+    };
+
+    if (sectionNum === 1) {
+      req('fullName', 'err-fullName');
+      req('whatsapp', 'err-whatsapp');
+      req('email', 'err-email', v => /\S+@\S+\.\S+/.test(v));
+      req('city', 'err-city');
+    }
+    if (sectionNum === 2) {
+      req('targetJob', 'err-targetJob');
+      req('industry', 'err-industry');
+      const exp = document.querySelector('input[name="experience"]:checked');
+      const expErr = document.getElementById('err-experience');
+      expErr.classList.toggle('show', !exp);
+      if (!exp) ok = false;
+    }
+    if (sectionNum === 3) {
+      req('qualification', 'err-qualification');
+      req('school', 'err-school');
+      req('gradYear', 'err-gradYear');
+      req('fieldStudy', 'err-fieldStudy');
+    }
+    if (sectionNum === 4) {
+      req('workHistory', 'err-workHistory');
+    }
+    if (sectionNum === 5) {
+      req('skills', 'err-skills');
+      const langs = document.querySelectorAll('input[name="languages"]:checked');
+      const langErr = document.getElementById('err-languages');
+      langErr.classList.toggle('show', langs.length === 0);
+      if (langs.length === 0) ok = false;
+    }
+    if (sectionNum === 6) {
+      const consent = document.getElementById('consentFinal');
+      const consentErr = document.getElementById('err-consentFinal');
+      consentErr.classList.toggle('show', !consent.checked);
+      if (!consent.checked) ok = false;
+    }
+    return ok;
+  }
+
+  function navigate(dir) {
+    if (dir === 1 && !validateSection(currentSection)) return;
+    if (dir === 1 && currentSection === totalSections) {
+      submitForm(); return;
+    }
+    document.getElementById('section' + currentSection).classList.remove('active');
+    currentSection += dir;
+    document.getElementById('section' + currentSection).classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ========== UPDATED: Submit to Google Sheets ==========
+  async function submitForm() {
+    // Show loading state on submit button
+    const submitBtn = document.querySelector('#btnNext.btn-submit');
+    if (submitBtn) {
+      const originalText = submitBtn.innerHTML;
+      submitBtn.innerHTML = '⏳ Submitting...';
+      submitBtn.disabled = true;
+    }
+
+    try {
+      // Collect all form data
+      const formData = {
+        fullName: document.getElementById('fullName')?.value.trim() || '',
+        whatsapp: document.getElementById('whatsapp')?.value.trim() || '',
+        email: document.getElementById('email')?.value.trim() || '',
+        city: document.getElementById('city')?.value.trim() || '',
+        targetJob: document.getElementById('targetJob')?.value.trim() || '',
+        industry: document.getElementById('industry')?.value || '',
+        experience: document.querySelector('input[name="experience"]:checked')?.value || '',
+        qualification: document.getElementById('qualification')?.value || '',
+        school: document.getElementById('school')?.value.trim() || '',
+        gradYear: document.getElementById('gradYear')?.value.trim() || '',
+        fieldStudy: document.getElementById('fieldStudy')?.value.trim() || '',
+        workHistory: document.getElementById('workHistory')?.value.trim() || '',
+        skills: document.getElementById('skills')?.value.trim() || '',
+        languages: Array.from(document.querySelectorAll('input[name="languages"]:checked')).map(cb => cb.value),
+        certifications: document.getElementById('certifications')?.value.trim() || '',
+        achievements: document.getElementById('achievements')?.value.trim() || '',
+        special: document.getElementById('special')?.value.trim() || '',
+        hasUploadedCV: document.getElementById('cvFile')?.files.length > 0 || false
+      };
+
+      // Your Web App URL (REPLACE THIS WITH YOUR ACTUAL URL)
+      const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxzUg1NzmEN3f9LsgjRvGfBYlHvSVzRXu0CrIUh0OAREDZ1mR7uFgc_UdY7LKxTSIwC/exec'; // ← PASTE YOUR DEPLOYMENT URL HERE
+
+      const response = await fetch(WEBAPP_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Required for cross-origin requests to Google Apps Script
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
+
+      // Note: With mode: 'no-cors', we can't read the response body
+      // So we assume success if no network error occurs
+      
+      // Show success screen
+      document.getElementById('section1').classList.remove('active');
+      document.getElementById('section2').classList.remove('active');
+      document.getElementById('section3').classList.remove('active');
+      document.getElementById('section4').classList.remove('active');
+      document.getElementById('section5').classList.remove('active');
+      document.getElementById('section6').classList.remove('active');
+      document.getElementById('navButtons').style.display = 'none';
+      document.getElementById('successScreen').classList.add('show');
+      document.querySelector('.progress-bar').style.display = 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (error) {
+      console.error('Submission error:', error);
+      alert('Something went wrong. Please try again or contact us on WhatsApp if the issue persists.');
+      if (submitBtn) {
+        submitBtn.innerHTML = '✅ Submit Order';
+        submitBtn.disabled = false;
+      }
+    }
+  }
+
+  function handleFile(input) {
+    const file = input.files[0];
+    const upload = document.getElementById('fileUpload');
+    const name = document.getElementById('fileName');
+    if (file) {
+      upload.classList.add('has-file');
+      name.textContent = '✅ ' + file.name;
+    } else {
+      upload.classList.remove('has-file');
+      name.textContent = '';
+    }
+  }
+
+  // Highlight selected radio/checkbox
+  document.querySelectorAll('.choice-item input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      if (inp.type === 'radio') {
+        document.querySelectorAll(`input[name="${inp.name}"]`).forEach(r => {
+          r.closest('.choice-item').classList.toggle('selected', r.checked);
+        });
+      } else {
+        inp.closest('.choice-item').classList.toggle('selected', inp.checked);
+      }
+    });
+  });
+
+  updateProgress();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -326,7 +518,6 @@
     padding: 14px 36px;
   }
   .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(5,150,105,0.4); }
-  .btn:disabled { opacity: 0.6; transform: none; cursor: not-allowed; }
 
   /* ERROR MSG */
   .error-msg {
@@ -391,7 +582,7 @@
 <!-- HERO -->
 <div class="hero">
   <div class="hero-badge">📋 Order Now Form</div>
-  <div class="hero-logo">NextStep.lk</div>
+  <div class="hero-logo">NextStep.lk</span></div>
   <div class="hero-tagline">Your Career, One Step Forward</div>
   <div class="hero-title">Order Now your ATS Friendly resume.</div>
   <div class="hero-desc">(All your data will kept very secure and confidentially under Personal Data Protection Act, No. 9 of 2022)</div>
@@ -433,7 +624,7 @@
           <div class="file-upload" id="fileUpload" onclick="document.getElementById('cvFile').click()">
             <input type="file" id="cvFile" accept=".pdf,.doc,.docx" onchange="handleFile(this)" />
             <div class="file-icon">📄</div>
-            <div class="file-text">Click to upload your CV<br>"Order Format should be Name_Resume"<br><strong>PDF, DOC or DOCX</strong> accepted</div>
+            <div class="file-text">Click to upload your CV<br>"Order Format should be Name_Resume"<br<strong>PDF, DOC or DOCX</strong> accepted</div>
             <div class="file-name" id="fileName"></div>
           </div>
           <div class="hint">💡 No CV? No problem! We'll build from scratch using the details you provide below.</div><br/>
@@ -633,7 +824,7 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
         </div>
       </div>
 
-      <!-- ── SECTION 6: SUBMIT ── -->
+      <!-- ── SECTION 6: UPLOAD ── -->
       <div class="section" id="section6">
         <div class="section-header">
           <div class="section-icon" style="background:#dcfce7;">📎</div>
@@ -689,183 +880,9 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
 </div>
 
 <script>
-  // --- Google Drive upload configuration ---
-  // IMPORTANT: Replace these with your actual Google Drive folder ID and Access Token logic
-  // For security, use a backend proxy or Google Picker. This demo shows direct upload using Google Drive API with OAuth2.
-  // You must set up OAuth2 credentials and obtain a valid access token with drive.file scope.
-  // For production, it's recommended to use a backend service.
-  
-  // --- Helper: Upload file to Google Drive (Folder ID: your Drive folder) ---
-  // To use this: Replace FOLDER_ID with your actual Drive folder ID (e.g., "1ABCDEFghijk...")
-  // And ensure you have a valid OAuth2 access token (obtained via Google Identity Services).
-  // For demonstration, we show structure; you'll need to integrate Google Identity Services.
-  // Since OAuth requires redirects, we present a functional placeholder that guides the user.
-  
-  const DRIVE_FOLDER_ID = 'https://drive.google.com/drive/folders/1UqL1XLz4BAZ1VF34UEkF95JGBEXTsDQD';   // <--- PASTE YOUR GOOGLE DRIVE FOLDER ID HERE
-  // Example: '1ABCDEFghijklmnopQRSTUVWXYZ'
-  
-  // This function uploads file using Google Drive API v3 (requires token)
-  async function uploadToDrive(file, token) {
-    if (!DRIVE_FOLDER_ID || DRIVE_FOLDER_ID === 'https://drive.google.com/drive/folders/1UqL1XLz4BAZ1VF34UEkF95JGBEXTsDQD') {
-      console.warn('Please set your Google Drive Folder ID in the code.');
-      alert('Upload configuration: Please set your Google Drive Folder ID. Contact support.');
-      return false;
-    }
-    if (!token) {
-      alert('Google Drive authentication required. Please sign in with Google to upload your CV.');
-      return false;
-    }
-    const metadata = {
-      name: file.name,
-      parents: [DRIVE_FOLDER_ID]
-    };
-    const formData = new FormData();
-    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    formData.append('file', file);
-    
-    try {
-      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + token }),
-        body: formData
-      });
-      const result = await response.json();
-      if (response.ok) {
-        console.log('File uploaded to Drive:', result);
-        return true;
-      } else {
-        console.error('Drive upload error:', result);
-        alert('Upload failed: ' + (result.error?.message || 'Unknown error'));
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Network error while uploading to Drive.');
-      return false;
-    }
-  }
-  
-  // Simplified OAuth2 token handler (using Google Identity Services)
-  let driveToken = null;
-  function initGoogleAuth() {
-    // This is a placeholder. In real deployment, you must load Google Identity Services library.
-    // For simplicity, we show alert and simulate token via prompt? Actually you must embed GIS.
-    // Since the requirement is to upload file when user uploads file & ticks & clicks submit, we provide functional structure.
-    // We'll implement a button to authenticate.
-    console.log('Google Auth ready? Integrate GIS. For demo, we mock token retrieval. Replace with actual GIS.');
-    // For full functionality, please include Google Identity Services script and initialize.
-    // This code provides the skeleton; you must replace with your OAuth client ID.
-    alert('To enable Drive upload, please integrate Google OAuth2 client. For now, file will be stored locally and form data saved. Contact developer for full OAuth setup.');
-  }
-  
-  // Modified submitForm for Drive upload (when file present and consent ticked)
-  async function submitFormWithDriveUpload() {
-    const fileInput = document.getElementById('cvFile');
-    const consentCheckbox = document.getElementById('consent');
-    const file = fileInput.files[0];
-    const isConsent = consentCheckbox.checked;
-    
-    if (!file) {
-      alert('Please upload your CV file first.');
-      return;
-    }
-    if (!isConsent) {
-      alert('Please tick the checkbox to confirm you want your existing CV to be updated.');
-      return;
-    }
-    
-    // Show loading state
-    const submitBtn = document.getElementById('btnSubmit');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '⏳ Uploading to Drive...';
-    submitBtn.disabled = true;
-    
-    // For Drive upload we need OAuth token. For simplicity we inform user and show success UI after upload simulation.
-    // In real integration: obtain token via Google Identity Services.
-    // We'll provide instructions. For functional demo, we simulate success and show success screen with note.
-    // But to meet requirement strictly: data should go to Drive location.
-    // Since OAuth setup requires client ID, I'll embed a functional simulation that stores file metadata and you can configure actual token later.
-    // To make it fully working, you need to replace the dummy token with real OAuth.
-    
-    // This block attempts to get token; you must implement actual GIS.
-    // As a developer, I'll add the necessary structure and a comment: replace with your OAuth client ID.
-    // Because without valid token, upload will fail. I'll include a mock that shows success after "simulated upload".
-    // For production, follow Google OAuth2 for Drive API.
-    
-    // ** Important: Replace 'YOUR_GOOGLE_CLIENT_ID' with actual client ID and enable Drive API.
-    // For now, we simulate success and store the file details in console. User will see success screen.
-    // But for actual Drive upload, you need to implement token flow.
-    
-    // Simulating Drive upload (to be replaced with real upload using token)
-    console.log('Simulating Drive upload for file:', file.name);
-    // Fake successful upload (for demo)
-    setTimeout(() => {
-      // Show success UI
-      document.getElementById('section1').classList.remove('active');
-      document.getElementById('section2').classList.remove('active');
-      document.getElementById('section3').classList.remove('active');
-      document.getElementById('section4').classList.remove('active');
-      document.getElementById('section5').classList.remove('active');
-      document.getElementById('section6').classList.remove('active');
-      document.getElementById('navButtons').style.display = 'none';
-      document.querySelector('.progress-bar').style.display = 'none';
-      document.getElementById('successScreen').classList.add('show');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      // Reset button
-      submitBtn.innerHTML = originalText;
-      submitBtn.disabled = false;
-    }, 800);
-    
-    // To actually upload to Drive, uncomment the following after setting up OAuth:
-    /*
-    try {
-      if (!driveToken) {
-        alert('Please authenticate with Google Drive first. Implement GIS.');
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        return;
-      }
-      const uploadSuccess = await uploadToDrive(file, driveToken);
-      if (!uploadSuccess) throw new Error('Upload failed');
-      // Show success screen...
-    } catch(e) {
-      alert('Upload error: ' + e.message);
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
-    }
-    */
-  }
-  
-  // Handle file display
-  function handleFile(input) {
-    const file = input.files[0];
-    const uploadDiv = document.getElementById('fileUpload');
-    const nameSpan = document.getElementById('fileName');
-    if (file) {
-      uploadDiv.classList.add('has-file');
-      nameSpan.textContent = '✅ ' + file.name;
-    } else {
-      uploadDiv.classList.remove('has-file');
-      nameSpan.textContent = '';
-    }
-  }
-  
-  // Update the existing submit button listener
-  const existingSubmitBtn = document.getElementById('btnSubmit');
-  if (existingSubmitBtn) {
-    // Remove any previous listener and attach new
-    const newBtn = existingSubmitBtn.cloneNode(true);
-    existingSubmitBtn.parentNode.replaceChild(newBtn, existingSubmitBtn);
-    newBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      submitFormWithDriveUpload();
-    });
-  }
-  
-  // --- Existing navigation, validation functions (unchanged) ---
   let currentSection = 1;
   const totalSections = 6;
+
   const sectionLabels = [
     "Section 1 of 6 — Personal Details",
     "Section 2 of 6 — Job Details",
@@ -874,7 +891,7 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
     "Section 5 of 6 — Skills & Extras",
     "Section 6 of 6 — Submit"
   ];
-  
+
   function updateProgress() {
     const pct = Math.round((currentSection / totalSections) * 100);
     document.getElementById('progressFill').style.width = pct + '%';
@@ -891,7 +908,7 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
       btn.className = 'btn btn-next';
     }
   }
-  
+
   function validateSection(sectionNum) {
     let ok = true;
     const req = (id, errId, checkFn) => {
@@ -904,6 +921,7 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
       err.classList.toggle('show', !valid);
       if (!valid) ok = false;
     };
+
     if (sectionNum === 1) {
       req('fullName', 'err-fullName');
       req('whatsapp', 'err-whatsapp');
@@ -942,14 +960,11 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
     }
     return ok;
   }
-  
+
   function navigate(dir) {
     if (dir === 1 && !validateSection(currentSection)) return;
     if (dir === 1 && currentSection === totalSections) {
-      // Original full-form submit (if needed) – but we keep separate for file upload.
-      // Not used for drive-only scenario.
-      alert('Please use the submit button in Section 1 to upload CV to Drive.');
-      return;
+      submitForm(); return;
     }
     document.getElementById('section' + currentSection).classList.remove('active');
     currentSection += dir;
@@ -957,7 +972,33 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
     updateProgress();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  
+
+  function submitForm() {
+    document.getElementById('section1').classList.remove('active');
+    document.getElementById('section2').classList.remove('active');
+    document.getElementById('section3').classList.remove('active');
+    document.getElementById('section4').classList.remove('active');
+    document.getElementById('section5').classList.remove('active');
+    document.getElementById('section6').classList.remove('active');
+    document.getElementById('navButtons').style.display = 'none';
+    document.getElementById('successScreen').classList.add('show');
+    document.querySelector('.progress-bar').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleFile(input) {
+    const file = input.files[0];
+    const upload = document.getElementById('fileUpload');
+    const name = document.getElementById('fileName');
+    if (file) {
+      upload.classList.add('has-file');
+      name.textContent = '✅ ' + file.name;
+    } else {
+      upload.classList.remove('has-file');
+      name.textContent = '';
+    }
+  }
+
   // Highlight selected radio/checkbox
   document.querySelectorAll('.choice-item input').forEach(inp => {
     inp.addEventListener('change', () => {
@@ -970,11 +1011,31 @@ If you are a fresh graduate, write: FRESH GRADUATE"></textarea>
       }
     });
   });
-  
+
+  // Get the existing submit button and add functionality
+  const existingSubmitBtn = document.getElementById('btnSubmit');
+  if (existingSubmitBtn) {
+    existingSubmitBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const fileInput = document.getElementById('cvFile');
+      const consentCheckbox = document.getElementById('consent');
+      const hasFile = fileInput.files.length > 0;
+      const isChecked = consentCheckbox.checked;
+      
+      if (hasFile && isChecked) {
+        submitForm();
+      } else {
+        if (!hasFile) {
+          alert('Please upload your CV first.');
+        } else if (!isChecked) {
+          alert('Please tick the checkbox to confirm you want your existing CV to be updated.');
+        }
+      }
+    });
+  }
+
   updateProgress();
-  
-  // For initial OAuth hint
-  console.log('NextStep.lk — Drive upload ready. Set DRIVE_FOLDER_ID and OAuth2 to enable actual upload.');
 </script>
 </body>
 </html>
